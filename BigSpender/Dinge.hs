@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
 module BigSpender.Dinge where
 
-import Data.BigDecimal
+import Data.BigDecimal (BigDecimal)
 import qualified Data.Time.Calendar as Calendar
 
 data Spesenritter = Spesenritter {
@@ -36,6 +36,7 @@ data Anlass
 data Beleg = Beleg {
     belegNummer :: Int,
     belegSpesenritter :: Spesenritter,
+    belegDatum :: Calendar.Day,
     belegInfo :: BelegInfo,
     belegProjekt :: Projekt,
     belegVorgang :: Vorgang,
@@ -76,6 +77,9 @@ data Geld = Geld {
   , geldWaehrung :: Waehrung
   }
   deriving (Show, Eq)
+
+skaliereGeld :: BigDecimal -> Geld -> Geld
+skaliereGeld faktor geld = geld { geldBetrag = faktor * geldBetrag geld }
 
 instance Num Geld where
   geld1 + geld2
