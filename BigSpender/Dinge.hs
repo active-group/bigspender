@@ -21,14 +21,14 @@ data Vorgang = Vorgang {
 
 data Anlass
   = Reise {
-    reiseZiel :: String
-    , reiseStart :: Calendar.Day
-    , reiseEnde :: Calendar.Day
+    reiseZiel :: String,
+    reiseStart :: Calendar.Day,
+    reiseEnde :: Calendar.Day
     }
   | Messebesuch {
-    messeBesuchMesse :: String
-    , messeBesuchStart :: Calendar.Day
-    , messeBesuchEnde :: Calendar.Day
+    messeBesuchMesse :: String,
+    messeBesuchStart :: Calendar.Day,
+    messeBesuchEnde :: Calendar.Day
     }
   | Vertriebsaktion
   deriving (Show, Eq, Ord)
