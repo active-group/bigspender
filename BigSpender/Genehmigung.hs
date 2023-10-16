@@ -12,7 +12,7 @@ newtype Rueckfrage = Rueckfrage String -- an den Spesenritter
   deriving (Eq, Ord, Show)
 newtype Frage = Frage String -- an den Genehmiger
   deriving (Eq, Ord, Show)
-newtype Antwort = Antwort String
+newtype Antwort = Antwort String -- auf eine Rückfrage
   deriving (Eq, Ord, Show)
 
 data Genehmigung = Genehmigung Beleg GenehmigungsErgebnis
@@ -46,7 +46,7 @@ belegeSumme belege = sum (map belegGeld belege)
 
 data GenehmigungsProzess a =
     HoleProjektBelege Projekt ([Beleg] -> GenehmigungsProzess a)
-    -- FIXME: vs. GenehmigungFrage
+    -- FIXME: vs. GenehmigungFrage, außerdem ist Antort für Rückfrage
   | FrageGenehmiger Frage (Antwort -> GenehmigungsProzess a)
   | FrageStichtag (Calendar.Day -> GenehmigungsProzess a)
   | GenehmigungFertig a
