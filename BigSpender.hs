@@ -27,14 +27,14 @@ data Date = Date String
 
 data Anlass
   = Reise {
-    reiseZiel :: String
-    , reiseStart :: Date
-    , reiseEnde :: Date
+    reiseZiel :: String,
+    reiseStart :: Date,
+    reiseEnde :: Date
     }
   | Messebesuch {
-    messeBesuchMesse :: String
-    , messeBesuchStart :: Date
-    , messeBesuchEnde :: Date
+    messeBesuchMesse :: String,
+    messeBesuchStart :: Date,
+    messeBesuchEnde :: Date
     }
   | Vertriebsaktion
   deriving (Show, Eq, Ord)
@@ -78,8 +78,8 @@ data Rechnung = Rechnung {
 
 
 data Geld = Geld {
-    geldBetrag :: BigDecimal
-  , geldWaehrung :: Waehrung
+    geldBetrag :: BigDecimal,
+    geldWaehrung :: Waehrung
   }
   deriving (Show, Eq, Ord)
 
