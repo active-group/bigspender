@@ -79,17 +79,25 @@ data Geld = Geld {
   deriving (Show, Eq)
 
 skaliereGeld :: BigDecimal -> Geld -> Geld
+-- >>> skaliereGeld 12 (Geld 10 EUR)
+-- Geld {geldBetrag = 120, geldWaehrung = EUR}
 skaliereGeld faktor geld = geld { geldBetrag = faktor * geldBetrag geld }
 
+-- >>> (Geld 10 EUR) + (Geld 12 EUR)
+-- Geld {geldBetrag = 22, geldWaehrung = EUR}
 instance Num Geld where
   geld1 + geld2
     | geldWaehrung geld1 == geldWaehrung geld2
     = Geld (geldBetrag geld1 + geldBetrag geld2) (geldWaehrung geld1)
 
+-- >>> compare (Geld 10 EUR) (Geld 12 EUR)
+-- LT
+-- >>> (Geld 10 EUR) < (Geld 12 EUR)
+-- True
 instance Ord Geld where
   compare geld1 geld2
     | geldWaehrung geld1 == geldWaehrung geld2
-    = compare (geldWaehrung geld1) (geldWaehrung geld2)
+    = compare (geldBetrag geld1) (geldBetrag geld2)
     
 data Waehrung = EUR | USD | GBP
   deriving (Show, Eq, Ord)
