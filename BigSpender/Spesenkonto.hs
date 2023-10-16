@@ -68,13 +68,14 @@ instance Monad Spesenkonto where
 
 data SpesenkontoState = SpesenkontoState {
     spesenkontoStateBelegStatus :: Map Beleg BelegStatus,
+    -- FIXME: Historie pro Beleg
     spesenkontoStateRechnungen :: [Rechnung],
     spesenkontoStateAuszahlungen :: [(Beleg, Auszahlung)]
   }
 
 spesenkontoStateGenehmigungsKontext state antworten =
   GenehmigungsKontext {
-    genehmigungsKontextStichtag = undefined,
+    genehmigungsKontextStichtag = undefined, -- FIXME
     genehmigungsKontextBelege = Map.keys (spesenkontoStateBelegStatus state),
     genehmigungsKontextAntworten = antworten
     }
@@ -92,7 +93,7 @@ runSpesenkonto antworten state spesenkonto =
    run state (SchiebeBeleg spesenritter datum belegInfo projekt vorgang geld kostenstelle cont) =
      let beleg = Beleg { belegNummer = nextBelegNummer state,
                          belegSpesenritter = spesenritter,
-                         belegDatum = undefined,
+                         belegDatum = datum,
                          belegInfo = belegInfo,
                          belegProjekt = projekt,
                          belegVorgang = vorgang,
@@ -112,7 +113,7 @@ runSpesenkonto antworten state spesenkonto =
 --         updateBelegStatus newStatus =
 --           run (spesenkontoStateUpdateBelegStatus beleg newStatus state)
 --               (cont (Just genehmigung))
-     in undefined      
+     in undefined  -- FIXME
 --             in case genehmigung of
 --                  GenehmigungErteilt -> updateBelegStatus BelegStatusGenehmigt
 --                  GenehmigungZurueckgewiesen -> updateBelegStatus BelegStatusZurueckgewiesen
