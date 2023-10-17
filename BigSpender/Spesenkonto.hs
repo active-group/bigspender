@@ -24,7 +24,7 @@ data Spesenkonto a =
   --  dessen Spesenbetrag ein eingestelltes Limit überschreitet."
   | GenehmigerGenehmigungsStatus ([(Beleg, GenehmigungsStatus)] -> Spesenkonto a)
   -- ...
-  | WendeGenehmigungsRegelAn Genehmigungsregel (() -> Spesenkonto a)
+  | WendeGenehmigungsRegelAn Genehmigungsregel Beleg (() -> Spesenkonto a)
   -- "Als Genehmiger möchte ich eine Rückfrage zu einem Vorgang an den Spesenritter stellen können."
   | StelleRueckfrage Beleg Frage (() -> Spesenkonto a) 
   | Genehmige Beleg (() -> Spesenkonto a)
@@ -70,8 +70,8 @@ instance Functor Spesenkonto where
      SpesenritterBelegStatus spesenRitter (fmap f  . cont)
   fmap f (GenehmigerGenehmigungsStatus cont) =
     GenehmigerGenehmigungsStatus (fmap f . cont)
-  fmap f (WendeGenehmigungsRegelAn regel cont) =
-    WendeGenehmigungsRegelAn regel (fmap f . cont)
+  fmap f (WendeGenehmigungsRegelAn regel beleg cont) =
+    WendeGenehmigungsRegelAn regel beleg (fmap f . cont)
   fmap f (StelleRueckfrage beleg frage cont) =
     StelleRueckfrage beleg frage (fmap f . cont)
   fmap f (BeantworteRueckfrage beleg antwort cont) =
@@ -92,8 +92,8 @@ spesenkontoBind (SpesenritterBelegStatus spesenRitter cont) next =
    SpesenritterBelegStatus spesenRitter (\status -> spesenkontoBind (cont status) next)
 spesenkontoBind (GenehmigerGenehmigungsStatus cont) next =
    GenehmigerGenehmigungsStatus (\status -> spesenkontoBind (cont status) next)
-spesenkontoBind (WendeGenehmigungsRegelAn regel cont) next =
-  WendeGenehmigungsRegelAn regel (\genehmigung -> spesenkontoBind (cont genehmigung) next)
+spesenkontoBind (WendeGenehmigungsRegelAn regel beleg cont) next =
+  WendeGenehmigungsRegelAn regel beleg (\genehmigung -> spesenkontoBind (cont genehmigung) next)
 spesenkontoBind (StelleRueckfrage beleg frage cont) next =
   StelleRueckfrage beleg frage (\() -> spesenkontoBind (cont ()) next)
 spesenkontoBind (Genehmige beleg cont) next =
@@ -137,8 +137,8 @@ nextBelegNummer :: SpesenkontoState -> Int
 nextBelegNummer state =
   maximum (map belegNummer (Map.keys (spesenkontoStateBelegStatus state))) + 1
 
-runSpesenkonto :: Antworten -> SpesenkontoState -> Spesenkonto a -> (a, SpesenkontoState)
-runSpesenkonto antworten state spesenkonto =
+runSpesenkonto :: Calendar.Day -> Antworten -> SpesenkontoState -> Spesenkonto a -> (a, SpesenkontoState)
+runSpesenkonto stichtag antworten state spesenkonto =
   run state spesenkonto
   where
    run state (LegeBelegAb spesenritter datum belegInfo projekt vorgang geld kostenstelle cont) =
@@ -164,22 +164,15 @@ runSpesenkonto antworten state spesenkonto =
                            (Map.toList (spesenkontoStateBelegStatus state))
      in run state (cont pairs)
 
-{-
-run state (WendeGenehmigungsRegelAn regel cont) =
-     let status = spesenkontoStateBelegStatus state
-         prozess = genehmigungsRegelProzess regel beleg (fromMaybe BelegStatusErfasst (Map.lookup beleg status)) -- FIXME
-         genehmigungen = runGenehmigungsProzess (spesenkontoStateGenehmigungsKontext state) prozess
---         updateBelegStatus newStatus =
---           run (spesenkontoStateUpdateBelegStatus beleg newStatus state)
---               (cont (Just genehmigung))
-     in undefined  -- FIXME
---             in case genehmigung of
---                  GenehmigungErteilt -> updateBelegStatus BelegStatusGenehmigt
---                  GenehmigungZurueckgewiesen -> updateBelegStatus BelegStatusZurueckgewiesen
---                  GenehmigungRueckfrage rueckfrage -> updateBelegStatus  (BelegStatusRueckfrage rueckfrage)
---                  GenehmigungFrage frage -> updateBelegStatus (BelegStatusFrage frage)
--}
-
+   run state (WendeGenehmigungsRegelAn regel beleg cont) =
+     case wendeGenehmigungsRegelAn stichtag (map fst (Map.toList (spesenkontoStateBelegStatus state))) regel beleg of
+       Just ergebnis ->
+         let belegStatus = case ergebnis of
+                             GenehmigungErteilt -> BelegStatusGenehmigt
+                             GenehmigungZurueckgewiesen -> BelegStatusAbgelehnt
+                             GenehmigungFrageGenehmiger frage -> BelegStatusGenehmigerFrage frage
+         in run (spesenkontoStateUpdateBelegStatus beleg belegStatus state) (cont ())
+       Nothing -> run state (cont ())
 
    run state (StelleRueckfrage beleg frage cont) =
      run (spesenkontoStateUpdateBelegStatus beleg (BelegStatusRueckfrage frage) state)

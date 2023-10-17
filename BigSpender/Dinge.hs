@@ -3,6 +3,7 @@ module BigSpender.Dinge where
 
 import Data.BigDecimal (BigDecimal)
 import qualified Data.Time.Calendar as Calendar
+import Data.List (nub)
 
 data Spesenritter = Spesenritter {
   spesenritterName :: String
@@ -44,7 +45,11 @@ data Beleg = Beleg {
   }
   deriving (Show, Eq, Ord)
 
+belegSpesenritter :: Beleg -> Spesenritter
 belegSpesenritter beleg = vorgangSpesenRitter (belegVorgang beleg)
+
+belegeProjekte :: [Beleg] -> [Projekt]
+belegeProjekte belege = nub (map belegProjekt belege)
 
 -- der Beleg an und für sich
 data BelegInfo

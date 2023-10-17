@@ -16,6 +16,7 @@ newtype Frage = Frage String -- an den Genehmiger
 newtype Antwort = Antwort String -- auf eine Rückfrage
   deriving (Eq, Ord, Show)
 
+-- FIXME: DELETEME?
 data Genehmigung = Genehmigung Beleg GenehmigungsErgebnis
  deriving (Eq, Ord, Show)
 
@@ -28,10 +29,10 @@ data GenehmigungsErgebnis
 
 data Genehmigungsregel =
   GenehmigungsRegel {
-    genehmigungsRegelName :: String,
+    genehmigungsregelName :: String,
     -- Beleg, BelegStatus zweifelhaft
     -- aber: vom Beleg wird das Projekt gebraucht
-    genehmigungsRegelProzess :: Projekt -> GenehmigungsProzess [Genehmigung]
+    genehmigungsregelProzess :: Beleg -> GenehmigungsProzess (Maybe GenehmigungsErgebnis)
   }
 
 -- Problem: verschiedene Währungen
@@ -97,6 +98,10 @@ runGenehmigungsProzess kontext (GenehmigungFertig a) = a
 montagVon :: Calendar.Day -> Calendar.Day
 montagVon = Calendar.weekFirstDay Calendar.Monday
 
+wendeGenehmigungsRegelAn :: Calendar.Day -> [Beleg] -> Genehmigungsregel -> Beleg -> Maybe GenehmigungsErgebnis
+wendeGenehmigungsRegelAn stichtag belege regel beleg =
+  runGenehmigungsProzess (GenehmigungsKontext stichtag belege) (genehmigungsregelProzess regel beleg)
+
 belegeDerLetztenWoche :: Projekt -> GenehmigungsProzess [Beleg]
 belegeDerLetztenWoche projekt =
   do projektBelege <- holeProjektBelege projekt
@@ -118,25 +123,33 @@ wochenDurchschnitt projekt =
     return (skaliereGeld (1/fromInteger (toInteger (length wochenSummen))) (sum wochenSummen))
 
 
--- "Wenn Spesen für Projekt X anfallen, die am Ende der Woche insgesamt kleiner als Y Euro sind, dann genehmige sofort und frage nicht nach."
-genehmigungsRegel1 :: Geld -> Projekt -> GenehmigungsProzess [Genehmigung]
-genehmigungsRegel1 grenze projekt =
-  do belege <- belegeDerLetztenWoche projekt
-     if belegeSumme belege <= grenze
-     then return (map (\beleg -> Genehmigung beleg GenehmigungErteilt) belege)
-     else return []
+genehmigungsregel1 :: Geld -> Genehmigungsregel
+genehmigungsregel1 grenze =
+  let prozess beleg =
+        do let projekt = belegProjekt beleg
+           belege <- belegeDerLetztenWoche projekt
+           if belegeSumme belege <= grenze
+           then return (Just GenehmigungErteilt)
+           else return Nothing
+  in GenehmigungsRegel {
+       genehmigungsregelName = "Wenn Spesen für Projekt X anfallen, die am Ende der Woche insgesamt kleiner als Y Euro sind, dann genehmige sofort und frage nicht nach.",
+       genehmigungsregelProzess = prozess
+     }
 
--- "Wenn Spesen entstehen, die mehr als 20% vom Wochendurchschnitt des Projektes Z abweichen, dann löse eine Frage an den Genehmiger aus."
 
-genehmigungsregel2 :: Projekt -> GenehmigungsProzess [Genehmigung]
-genehmigungsregel2 projekt =
-  do durchschnitt <- wochenDurchschnitt projekt
-     belege <- belegeDerLetztenWoche projekt
-     if belegeSumme belege >= skaliereGeld 1.2 durchschnitt
-     then return (map (\beleg -> Genehmigung beleg
-                                   (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier.")))
-                      belege)
-     else return []
+genehmigungsregel2 :: Genehmigungsregel
+genehmigungsregel2 =
+  let prozess beleg =
+        do let projekt = belegProjekt beleg
+           durchschnitt <- wochenDurchschnitt projekt
+           belege <- belegeDerLetztenWoche projekt
+           if belegeSumme belege >= skaliereGeld 1.2 durchschnitt
+           then return (Just (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier.")))
+           else return Nothing
+  in GenehmigungsRegel {
+       genehmigungsregelName = "Wenn Spesen entstehen, die mehr als 20% vom Wochendurchschnitt des Projektes Z abweichen, dann löse eine Frage an den Genehmiger aus.",
+       genehmigungsregelProzess = prozess
+     }
 
 -- Daraus ergibt sich: Wann steht fest, daß alle Belege einer Woche da sind?
 
