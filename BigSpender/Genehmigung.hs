@@ -62,8 +62,7 @@ instance Functor GenehmigungsProzess where
 instance Applicative GenehmigungsProzess where
   pure = GenehmigungFertig
   fa <*> aa = fa `genehmigungsProzessBind` (\f ->
-              aa `genehmigungsProzessBind` (\ a ->
-              GenehmigungFertig (f a)))
+              aa `genehmigungsProzessBind` (GenehmigungFertig . f))
 
 
 genehmigungsProzessBind :: GenehmigungsProzess a -> (a -> GenehmigungsProzess b) -> GenehmigungsProzess b
@@ -80,7 +79,7 @@ instance Monad GenehmigungsProzess where
 
 type Antworten = Map Rueckfrage Antwort
 
-data GenehmigungsKontext = 
+data GenehmigungsKontext =
   GenehmigungsKontext {
     genehmigungsKontextStichtag :: Calendar.Day,
     genehmigungsKontextBelege :: [Beleg] -- es gibt mindestens einen
@@ -134,8 +133,8 @@ genehmigungsregel2 projekt =
   do durchschnitt <- wochenDurchschnitt projekt
      belege <- belegeDerLetztenWoche projekt
      if belegeSumme belege >= skaliereGeld 1.2 durchschnitt
-     then return (map (\beleg -> Genehmigung beleg 
-                                   (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier."))) 
+     then return (map (\beleg -> Genehmigung beleg
+                                   (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier.")))
                       belege)
      else return []
 
