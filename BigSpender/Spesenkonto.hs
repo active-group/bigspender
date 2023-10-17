@@ -43,19 +43,19 @@ data BelegStatus =
   | BelegStatusInBearbeitung
   | BelegStatusRueckfrage Frage
   | BelegStatusRueckfrageBeantwortet Frage Antwort
-  | BelegStatusGenehmigerFrage Frage -- dürfen Spesenritter sehen?
+  | BelegStatusGenehmigerFrage [Frage] -- dürfen Spesenritter sehen?
   | BelegStatusAusgezahlt
   deriving (Eq, Ord, Show)
 
 data GenehmigungsStatus =
-    GenehmigungsStatusGenehmigerFrage Frage
+    GenehmigungsStatusGenehmigerFrage [Frage]
   | GenehmigungsStatusRueckfrage Frage
   | GenehmigungsStatusRueckfrageBeantwortet Frage Antwort
 
 belegStatusToGenehmigungsStatus
   :: BelegStatus -> Maybe GenehmigungsStatus
-belegStatusToGenehmigungsStatus (BelegStatusGenehmigerFrage frage) =
-  Just (GenehmigungsStatusGenehmigerFrage frage)
+belegStatusToGenehmigungsStatus (BelegStatusGenehmigerFrage fragen) =
+  Just (GenehmigungsStatusGenehmigerFrage fragen)
 belegStatusToGenehmigungsStatus (BelegStatusRueckfrage frage) =
   Just (GenehmigungsStatusRueckfrage frage)
 belegStatusToGenehmigungsStatus (BelegStatusRueckfrageBeantwortet frage antwort) =
@@ -170,7 +170,8 @@ runSpesenkonto stichtag antworten state spesenkonto =
          let belegStatus = case ergebnis of
                              GenehmigungErteilt -> BelegStatusGenehmigt
                              GenehmigungZurueckgewiesen -> BelegStatusAbgelehnt
-                             GenehmigungFrageGenehmiger frage -> BelegStatusGenehmigerFrage frage
+                             -- was ist mit schon vorhandenen Fragen?  Rueckfragen?
+                             GenehmigungFrageGenehmiger fragen -> BelegStatusGenehmigerFrage fragen
          in run (spesenkontoStateUpdateBelegStatus beleg belegStatus state) (cont ())
        Nothing -> run state (cont ())
 

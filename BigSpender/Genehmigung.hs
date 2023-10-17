@@ -24,8 +24,16 @@ data GenehmigungsErgebnis
   = GenehmigungErteilt
   | GenehmigungZurueckgewiesen
 --  | GenehmigungRueckfrage Rueckfrage
-  | GenehmigungFrageGenehmiger Frage
+  | GenehmigungFrageGenehmiger [Frage]
   deriving (Eq, Ord, Show)
+
+instance Semigroup GenehmigungsErgebnis where
+  GenehmigungErteilt <> _ = GenehmigungErteilt
+  _ <> GenehmigungErteilt = GenehmigungErteilt
+  GenehmigungZurueckgewiesen <> _ = GenehmigungZurueckgewiesen
+  _ <> GenehmigungZurueckgewiesen = GenehmigungZurueckgewiesen
+  GenehmigungFrageGenehmiger fragen1 <> GenehmigungFrageGenehmiger fragen2 = GenehmigungFrageGenehmiger (fragen1 ++ fragen2)
+  
 
 data Genehmigungsregel =
   GenehmigungsRegel {
@@ -144,7 +152,7 @@ genehmigungsregel2 =
            durchschnitt <- wochenDurchschnitt projekt
            belege <- belegeDerLetztenWoche projekt
            if belegeSumme belege >= skaliereGeld 1.2 durchschnitt
-           then return (Just (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier.")))
+           then return (Just (GenehmigungFrageGenehmiger [Frage "Ganz schön viel Geld hier."]))
            else return Nothing
   in GenehmigungsRegel {
        genehmigungsregelName = "Wenn Spesen entstehen, die mehr als 20% vom Wochendurchschnitt des Projektes Z abweichen, dann löse eine Frage an den Genehmiger aus.",
