@@ -16,14 +16,9 @@ newtype Frage = Frage String -- an den Genehmiger
 newtype Antwort = Antwort String -- auf eine Rückfrage
   deriving (Eq, Ord, Show)
 
--- FIXME: DELETEME?
-data Genehmigung = Genehmigung Beleg GenehmigungsErgebnis
- deriving (Eq, Ord, Show)
-
 data GenehmigungsErgebnis
   = GenehmigungErteilt
   | GenehmigungZurueckgewiesen
---  | GenehmigungRueckfrage Rueckfrage
   | GenehmigungFrageGenehmiger [Frage]
   deriving (Eq, Ord, Show)
 
@@ -38,8 +33,6 @@ instance Semigroup GenehmigungsErgebnis where
 data Genehmigungsregel =
   GenehmigungsRegel {
     genehmigungsregelName :: String,
-    -- Beleg, BelegStatus zweifelhaft
-    -- aber: vom Beleg wird das Projekt gebraucht
     genehmigungsregelProzess :: Beleg -> GenehmigungsProzess (Maybe GenehmigungsErgebnis)
   }
 
@@ -50,21 +43,16 @@ belegeSumme belege = sum (map belegGeld belege)
 
 data GenehmigungsProzess a =
     HoleProjektBelege Projekt ([Beleg] -> GenehmigungsProzess a)
-    -- FIXME: vs. GenehmigungFrage, außerdem ist Antort für Rückfrage
-  -- | FrageGenehmiger Frage (Antwort -> GenehmigungsProzess a)
   | FrageStichtag (Calendar.Day -> GenehmigungsProzess a)
   | GenehmigungFertig a
 
 holeProjektBelege :: Projekt -> GenehmigungsProzess [Beleg]
 holeProjektBelege projekt = HoleProjektBelege projekt GenehmigungFertig
--- frageGenehmiger :: Frage -> GenehmigungsProzess Antwort
--- frageGenehmiger frage = FrageGenehmiger frage GenehmigungFertig
 frageStichtag :: GenehmigungsProzess Calendar.Day
 frageStichtag = FrageStichtag GenehmigungFertig
 
 instance Functor GenehmigungsProzess where
   fmap f (HoleProjektBelege projekt cont) = HoleProjektBelege projekt (fmap f . cont)
---  fmap f (FrageGenehmiger text cont) = FrageGenehmiger text (fmap f . cont)
   fmap f (FrageStichtag cont) = FrageStichtag (fmap f . cont)
   fmap f (GenehmigungFertig a) = GenehmigungFertig (f a)
 
@@ -79,8 +67,6 @@ genehmigungsProzessBind (HoleProjektBelege projekt cont) next =
   HoleProjektBelege projekt (\belege -> genehmigungsProzessBind (cont belege) next)
 genehmigungsProzessBind (FrageStichtag cont) next =
   FrageStichtag (\stichtag -> genehmigungsProzessBind (cont stichtag) next)
--- genehmigungsProzessBind (FrageGenehmiger frage cont) next =
---  FrageGenehmiger frage (\antwort -> genehmigungsProzessBind (cont antwort) next)
 genehmigungsProzessBind (GenehmigungFertig a) next = next a
 
 instance Monad GenehmigungsProzess where
