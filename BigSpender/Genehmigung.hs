@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
 module BigSpender.Genehmigung where
 
 import Data.BigDecimal (BigDecimal)
@@ -16,27 +17,21 @@ newtype Antwort = Antwort String -- auf eine Rückfrage
   deriving (Eq, Ord, Show)
 
 data Genehmigung = Genehmigung Beleg GenehmigungsErgebnis
+ deriving (Eq, Ord, Show)
 
 data GenehmigungsErgebnis
   = GenehmigungErteilt
   | GenehmigungZurueckgewiesen
-  | GenehmigungRueckfrage Rueckfrage
-  -- FIXME: vs. FrageGenehmiger
-  | GenehmigungFrage Frage
-
--- FIXME: benötigt?
-data BelegStatus
-  = BelegStatusErfasst
-  | BelegStatusFrage Frage
-  | BelegStatusRueckfrage Rueckfrage
-  | BelegStatusRueckfrageBeantwortet Rueckfrage Antwort
+--  | GenehmigungRueckfrage Rueckfrage
+  | GenehmigungFrageGenehmiger Frage
+  deriving (Eq, Ord, Show)
 
 data Genehmigungsregel =
   GenehmigungsRegel {
     genehmigungsRegelName :: String,
     -- Beleg, BelegStatus zweifelhaft
     -- aber: vom Beleg wird das Projekt gebraucht
-    genehmigungsRegelProzess :: Beleg -> BelegStatus -> GenehmigungsProzess [Genehmigung]
+    genehmigungsRegelProzess :: Projekt -> GenehmigungsProzess [Genehmigung]
   }
 
 -- Problem: verschiedene Währungen
@@ -47,17 +42,21 @@ belegeSumme belege = sum (map belegGeld belege)
 data GenehmigungsProzess a =
     HoleProjektBelege Projekt ([Beleg] -> GenehmigungsProzess a)
     -- FIXME: vs. GenehmigungFrage, außerdem ist Antort für Rückfrage
-  | FrageGenehmiger Frage (Antwort -> GenehmigungsProzess a)
+  -- | FrageGenehmiger Frage (Antwort -> GenehmigungsProzess a)
   | FrageStichtag (Calendar.Day -> GenehmigungsProzess a)
   | GenehmigungFertig a
 
+holeProjektBelege :: Projekt -> GenehmigungsProzess [Beleg]
 holeProjektBelege projekt = HoleProjektBelege projekt GenehmigungFertig
-frageGenehmiger frage = FrageGenehmiger frage GenehmigungFertig
+-- frageGenehmiger :: Frage -> GenehmigungsProzess Antwort
+-- frageGenehmiger frage = FrageGenehmiger frage GenehmigungFertig
+frageStichtag :: GenehmigungsProzess Calendar.Day
 frageStichtag = FrageStichtag GenehmigungFertig
 
 instance Functor GenehmigungsProzess where
   fmap f (HoleProjektBelege projekt cont) = HoleProjektBelege projekt (fmap f . cont)
-  fmap f (FrageGenehmiger text cont) = FrageGenehmiger text (fmap f . cont)
+--  fmap f (FrageGenehmiger text cont) = FrageGenehmiger text (fmap f . cont)
+  fmap f (FrageStichtag cont) = FrageStichtag (fmap f . cont)
   fmap f (GenehmigungFertig a) = GenehmigungFertig (f a)
 
 instance Applicative GenehmigungsProzess where
@@ -70,8 +69,10 @@ instance Applicative GenehmigungsProzess where
 genehmigungsProzessBind :: GenehmigungsProzess a -> (a -> GenehmigungsProzess b) -> GenehmigungsProzess b
 genehmigungsProzessBind (HoleProjektBelege projekt cont) next =
   HoleProjektBelege projekt (\belege -> genehmigungsProzessBind (cont belege) next)
-genehmigungsProzessBind (FrageGenehmiger frage cont) next =
-  FrageGenehmiger frage (\antwort -> genehmigungsProzessBind (cont antwort) next)
+genehmigungsProzessBind (FrageStichtag cont) next =
+  FrageStichtag (\stichtag -> genehmigungsProzessBind (cont stichtag) next)
+-- genehmigungsProzessBind (FrageGenehmiger frage cont) next =
+--  FrageGenehmiger frage (\antwort -> genehmigungsProzessBind (cont antwort) next)
 genehmigungsProzessBind (GenehmigungFertig a) next = next a
 
 instance Monad GenehmigungsProzess where
@@ -82,8 +83,7 @@ type Antworten = Map Rueckfrage Antwort
 data GenehmigungsKontext = 
   GenehmigungsKontext {
     genehmigungsKontextStichtag :: Calendar.Day,
-    genehmigungsKontextBelege :: [Beleg], -- es gibt mindestens einen
-    genehmigungsKontextAntworten :: Antworten
+    genehmigungsKontextBelege :: [Beleg] -- es gibt mindestens einen
   }
 
 runGenehmigungsProzess :: GenehmigungsKontext -> GenehmigungsProzess a -> a
@@ -91,14 +91,18 @@ runGenehmigungsProzess kontext (HoleProjektBelege projekt cont) =
   let isProjektBeleg beleg = belegProjekt beleg == projekt
       belege = filter isProjektBeleg (genehmigungsKontextBelege kontext)
   in runGenehmigungsProzess kontext (cont belege)
--- FIXME: FrageStichtag, FrageGenehmiger fehlt noch  
+runGenehmigungsProzess kontext (FrageStichtag cont) =
+  runGenehmigungsProzess kontext (cont (genehmigungsKontextStichtag kontext))
 runGenehmigungsProzess kontext (GenehmigungFertig a) = a
+
+montagVon :: Calendar.Day -> Calendar.Day
+montagVon = Calendar.weekFirstDay Calendar.Monday
 
 belegeDerLetztenWoche :: Projekt -> GenehmigungsProzess [Beleg]
 belegeDerLetztenWoche projekt =
   do projektBelege <- holeProjektBelege projekt
      stichtag <- frageStichtag
-     let letzterTag = Calendar.addDays (-1) (Calendar.weekFirstDay Calendar.Monday stichtag)
+     let letzterTag = Calendar.addDays (-1) (montagVon stichtag)
          woche = Calendar.weekAllDays Calendar.Monday letzterTag
          belege = filter (\beleg -> belegDatum beleg `elem` woche) projektBelege
      return belege
@@ -107,8 +111,7 @@ wochenDurchschnitt :: Projekt -> GenehmigungsProzess Geld
 wochenDurchschnitt projekt =
  do projektBelege <- holeProjektBelege projekt
     stichtag <- frageStichtag
-    let montagVon = Calendar.weekFirstDay Calendar.Monday
-        montag = montagVon stichtag
+    let montag = montagVon stichtag
         belege = filter (\beleg -> belegDatum beleg < montag) projektBelege
         montage = nub (sort (map (montagVon . belegDatum) belege))
         belegeProWoche = map (\montag -> filter (\beleg -> montagVon (belegDatum beleg) == montag) belege) montage
@@ -117,23 +120,23 @@ wochenDurchschnitt projekt =
 
 
 -- "Wenn Spesen für Projekt X anfallen, die am Ende der Woche insgesamt kleiner als Y Euro sind, dann genehmige sofort und frage nicht nach."
-genehmigungsRegel1 :: Geld -> Beleg -> belegstatus -> GenehmigungsProzess [Genehmigung]
-genehmigungsRegel1 grenze beleg belegStatus =
-  do let projekt = belegProjekt beleg
-     belege <- belegeDerLetztenWoche projekt
+genehmigungsRegel1 :: Geld -> Projekt -> GenehmigungsProzess [Genehmigung]
+genehmigungsRegel1 grenze projekt =
+  do belege <- belegeDerLetztenWoche projekt
      if belegeSumme belege <= grenze
      then return (map (\beleg -> Genehmigung beleg GenehmigungErteilt) belege)
      else return []
 
 -- "Wenn Spesen entstehen, die mehr als 20% vom Wochendurchschnitt des Projektes Z abweichen, dann löse eine Frage an den Genehmiger aus."
-genehmigungsregel2 :: Beleg -> belegstatus -> GenehmigungsProzess [Genehmigung]
-genehmigungsregel2 beleg belegStatus =
-  do let projekt = belegProjekt beleg
-     durchschnitt <- wochenDurchschnitt projekt
+
+genehmigungsregel2 :: Projekt -> GenehmigungsProzess [Genehmigung]
+genehmigungsregel2 projekt =
+  do durchschnitt <- wochenDurchschnitt projekt
      belege <- belegeDerLetztenWoche projekt
      if belegeSumme belege >= skaliereGeld 1.2 durchschnitt
-       -- FIXME: oder Frage monadisch auslösen
-     then return (map (\beleg -> Genehmigung beleg (GenehmigungFrage (Frage "Ganz schön viel Geld hier."))) belege)
+     then return (map (\beleg -> Genehmigung beleg 
+                                   (GenehmigungFrageGenehmiger (Frage "Ganz schön viel Geld hier."))) 
+                      belege)
      else return []
 
 -- Daraus ergibt sich: Wann steht fest, daß alle Belege einer Woche da sind?

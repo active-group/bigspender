@@ -11,8 +11,8 @@ data Spesenritter = Spesenritter {
 
 -- Anlass, dem mehrere Spesenbelege zuzuordnen sind,
 data Vorgang = Vorgang {
-  vorgangSpesenritter :: Spesenritter,
-  vorgangAnlass :: Anlass
+  vorgangAnlass :: Anlass, -- Vorgang == Anlass?
+  vorgangSpesenRitter :: Spesenritter
   }
   deriving (Show, Eq, Ord)
 
@@ -35,15 +35,16 @@ data Anlass
 
 data Beleg = Beleg {
     belegNummer :: Int,
-    belegSpesenritter :: Spesenritter,
-    belegDatum :: Calendar.Day,
     belegInfo :: BelegInfo,
-    belegProjekt :: Projekt,
     belegVorgang :: Vorgang,
-    belegGeld :: Geld,
-    belegKostenstelle :: Kostenstelle
+    belegDatum :: Calendar.Day, -- erfunden
+    belegGeld :: Geld, -- erfunden
+    belegKostenstelle :: Kostenstelle,
+    belegProjekt :: Projekt
   }
   deriving (Show, Eq, Ord)
+
+belegSpesenritter beleg = vorgangSpesenRitter (belegVorgang beleg)
 
 -- der Beleg an und für sich
 data BelegInfo
@@ -118,7 +119,7 @@ Spesen haben:
 - geldwerter Vorteil
 - nicht erstattbare Anteile bei den Verpflegungskoste
 - Erstattungsbetrag
-Spesen müssen also erstattet werden, die "Regeln" dafür sind langesspezifisch.
+Spesen müssen also erstattet werden, die "Regeln" dafür sind landesspezifisch.
 
 -}
 
