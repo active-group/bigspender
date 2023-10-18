@@ -17,7 +17,6 @@ data Vorgang = Vorgang {
   }
   deriving (Show, Eq, Ord)
 
-
 -- "welche meiner Belege schon erfasst wurden, welche genehmigt wurden und welche schon ausgezahlt sind" 
 
 data Anlass
@@ -85,10 +84,12 @@ data Geld = Geld {
   deriving (Show, Eq)
 
 skaliereGeld :: BigDecimal -> Geld -> Geld
+-- | Geldbetrag skalieren
 -- >>> skaliereGeld 12 (Geld 10 EUR)
 -- Geld {geldBetrag = 120, geldWaehrung = EUR}
 skaliereGeld faktor geld = geld { geldBetrag = faktor * geldBetrag geld }
 
+-- | Mit Geldbeträgen rechnen
 -- >>> (Geld 10 EUR) + (Geld 12 EUR)
 -- Geld {geldBetrag = 22, geldWaehrung = EUR}
 instance Num Geld where
@@ -96,6 +97,7 @@ instance Num Geld where
     | geldWaehrung geld1 == geldWaehrung geld2
     = Geld (geldBetrag geld1 + geldBetrag geld2) (geldWaehrung geld1)
 
+-- | Gelbeträge vergleichen
 -- >>> compare (Geld 10 EUR) (Geld 12 EUR)
 -- LT
 -- >>> (Geld 10 EUR) < (Geld 12 EUR)
