@@ -37,6 +37,8 @@ data Spesenkonto a =
   -- Steuern zahlen?
   | SpesenkontoFertig a
 
+
+-- was das System speichert
 data BelegStatus =
     BelegStatusGenehmigt
   | BelegStatusAbgelehnt
@@ -47,6 +49,7 @@ data BelegStatus =
   | BelegStatusAusgezahlt
   deriving (Eq, Ord, Show)
 
+-- was für den Genehmiger relevant ist
 data GenehmigungsStatus =
     GenehmigungsStatusGenehmigerFrage [Frage]
   | GenehmigungsStatusRueckfrage Frage
