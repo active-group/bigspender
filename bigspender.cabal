@@ -9,10 +9,6 @@ library
   build-depends:       QuickCheck,
                        base,
                        containers,
-                       mtl,
-                       parallel,
-                       sqlite-simple,
-                       text,
                        polysemy, polysemy-plugin,
                        HasBigDecimal,
                        time
