@@ -30,9 +30,12 @@
               pkgs.cabal-install
               self.packages.${system}.hls
             ];
+            nativeBuildInputs = [
+              pkgs.haskellPackages.doctest
+            ];
             shellHook = ''
               export PS1="\n\[\033[1;32m\][nix-shell:\W \[\033[1;31m\]FUNAR\[\033[1;32m\]]\$\[\033[0m\] "
-              echo -e "\n\033[1;31m ♣ ♠ Welcome to FUNAR! ♥ ♦ \033[0m\n"
+              echo -e "\n\033[1;31m ♣ ♠ Welcome to BigSpender! ♥ ♦ \033[0m\n"
               echo -e "   Use the following command to open VSCode in this directory:\n"
               echo "       code ."
             '';
