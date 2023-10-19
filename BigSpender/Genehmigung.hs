@@ -38,8 +38,12 @@ data Genehmigungsregel =
 
 -- Problem: verschiedene Währungen
 -- Problem: Belegbeträge oder ausgezahlte Spesen?
+
+-- | Summe der Beträge einer Menge von Belegen
+-- >>> belegeSumme [beleg1a, beleg1b]
+-- Geld 301000 EUR
 belegeSumme :: [Beleg] -> Geld
-belegeSumme belege = sum (map belegGeld belege)
+belegeSumme belege = mconcat (map belegGeld belege)
 
 data GenehmigungsProzess a =
     HoleProjektBelege Projekt ([Beleg] -> GenehmigungsProzess a)
@@ -89,6 +93,9 @@ runGenehmigungsProzess kontext (FrageStichtag cont) =
   runGenehmigungsProzess kontext (cont (genehmigungsKontextStichtag kontext))
 runGenehmigungsProzess kontext (GenehmigungFertig a) = a
 
+-- | Den Montag vor einem gegebenen Tag ermitteln
+-- >>> montagVon (Calendar.fromGregorian 2022 Calendar.December 31)
+-- 2022-12-26
 montagVon :: Calendar.Day -> Calendar.Day
 montagVon = Calendar.weekFirstDay Calendar.Monday
 
@@ -114,9 +121,13 @@ wochenDurchschnitt projekt =
         montage = nub (sort (map (montagVon . belegDatum) belege))
         belegeProWoche = map (\montag -> filter (\beleg -> montagVon (belegDatum beleg) == montag) belege) montage
         wochenSummen = map belegeSumme belegeProWoche
-    return (skaliereGeld (1/fromInteger (toInteger (length wochenSummen))) (sum wochenSummen))
+    return (skaliereGeld (1/fromInteger (toInteger (length wochenSummen))) (mconcat wochenSummen))
 
-
+-- | Genehmigungsregel #1 aus der Aufgabenstellung
+-- >>> wendeGenehmigungsRegelAn (Calendar.fromGregorian 2023 Calendar.January 4) [beleg1a, beleg1b] (genehmigungsregel1 (Geld 10 EUR)) beleg1a
+-- Nothing
+-- >>> wendeGenehmigungsRegelAn (Calendar.fromGregorian 2023 Calendar.January 4) [beleg1a, beleg1b] (genehmigungsregel1 (Geld 300000 EUR)) beleg1a
+-- Just GenehmigungErteilt
 genehmigungsregel1 :: Geld -> Genehmigungsregel
 genehmigungsregel1 grenze =
   let prozess beleg =
@@ -131,6 +142,9 @@ genehmigungsregel1 grenze =
      }
 
 
+-- | Genehmigungsregel #2 aus der Aufgabenstellung
+-- >>> wendeGenehmigungsRegelAn (Calendar.fromGregorian 2023 Calendar.January 4) [beleg1a, beleg1b] genehmigungsregel2 beleg1a
+-- Just (GenehmigungFrageGenehmiger [Frage "Ganz sch\246n viel Geld hier."])
 genehmigungsregel2 :: Genehmigungsregel
 genehmigungsregel2 =
   let prozess beleg =

@@ -10,12 +10,31 @@ data Spesenritter = Spesenritter {
   }
   deriving (Show, Eq, Ord)
 
+mike = Spesenritter "Mike Sperber"
+eberhard = Spesenritter "Eberhard Wolff"
+
 -- Anlass, dem mehrere Spesenbelege zuzuordnen sind,
 data Vorgang = Vorgang {
   vorgangAnlass :: Anlass, -- Vorgang == Anlass?
-  vorgangSpesenRitter :: Spesenritter
+  vorgangSpesenritter :: Spesenritter -- aus UML-Diagramm
   }
   deriving (Show, Eq, Ord)
+
+vorgang1 = Vorgang {
+  vorgangAnlass =
+      Reise "Acapulco"
+      (Calendar.fromGregorian 2022 Calendar.January 31)
+      (Calendar.fromGregorian 2022 Calendar.December 31),
+  vorgangSpesenritter = mike
+  }
+
+vorgang2 = Vorgang {
+  vorgangAnlass =
+      Messebesuch "OOP"
+      (Calendar.fromGregorian 2022 Calendar.April 31)
+      (Calendar.fromGregorian 2022 Calendar.May 2),
+  vorgangSpesenritter = eberhard
+  }
 
 -- "welche meiner Belege schon erfasst wurden, welche genehmigt wurden und welche schon ausgezahlt sind" 
 
@@ -40,12 +59,34 @@ data Beleg = Beleg {
     belegDatum :: Calendar.Day, -- erfunden
     belegGeld :: Geld, -- erfunden
     belegKostenstelle :: Kostenstelle,
-    belegProjekt :: Projekt
+    belegProjekt :: Projekt -- gehört zum Vorgang?
   }
   deriving (Show, Eq, Ord)
 
+projekt1 = Projekt "Städtetour Südamerika"
+
+beleg1a = Beleg {
+  belegNummer = 1,
+  belegInfo = Flugticket,
+  belegVorgang = vorgang1,
+  belegDatum = Calendar.fromGregorian 2022 Calendar.January 31,
+  belegGeld = Geld 1000 EUR,
+  belegKostenstelle = Kostenstelle "Kund:innenbesuch",
+  belegProjekt = Projekt "Städtetour Südamerika"
+  }
+
+beleg1b = Beleg {
+  belegNummer = 2,
+  belegInfo = Hotelrechnung,
+  belegVorgang = vorgang1,
+  belegDatum = Calendar.fromGregorian 2022 Calendar.December 31,
+  belegGeld = Geld 300000 EUR,
+  belegKostenstelle = Kostenstelle "Kund:innenbesuch",
+  belegProjekt = projekt1
+  }
+
 belegSpesenritter :: Beleg -> Spesenritter
-belegSpesenritter beleg = vorgangSpesenRitter (belegVorgang beleg)
+belegSpesenritter beleg = vorgangSpesenritter (belegVorgang beleg)
 
 belegeProjekte :: [Beleg] -> [Projekt]
 belegeProjekte belege = nub (map belegProjekt belege)
@@ -59,13 +100,13 @@ data BelegInfo
   | Restaurantbeleg
   deriving (Show, Eq, Ord)
 
-data Kostenstelle = Kostenstelle
+data Kostenstelle = Kostenstelle String
   deriving (Show, Eq, Ord)
 
-data Kunde = Kunde
+data Kunde = Kunde String
   deriving (Show, Eq, Ord)
 
-data Projekt = Projekt
+data Projekt = Projekt String
   deriving (Show, Eq, Ord)
 
 data Rechnung = Rechnung {
@@ -76,26 +117,48 @@ data Rechnung = Rechnung {
   }
   deriving (Show, Eq, Ord)
 
-
-data Geld = Geld {
-    geldBetrag :: BigDecimal
-  , geldWaehrung :: Waehrung
+rechnung1 = Rechnung {
+  rechnungProjekt = projekt1,
+  rechnungLeistungen = [Leistung "Strandbesuch",
+                        Leistung "Beratung",
+                        Leistung "Barbesuch" ],
+  rechnungHonorar = Honorar (Geld 300000 EUR),
+  rechnungSpesen = Spesen (Geld 100000 EUR)
   }
+
+data Geld =
+    Geld BigDecimal Waehrung
+  | KeinGeld
   deriving (Show, Eq)
 
-skaliereGeld :: BigDecimal -> Geld -> Geld
+geldWaehrung (Geld _ waehrung) = waehrung
+
+geldBetrag KeinGeld = 0
+geldBetrag (Geld betrag _) = betrag
+
+-- | Smart Constructor
+geld 0 _ = KeinGeld
+geld betrag waehrung = Geld betrag waehrung
+
 -- | Geldbetrag skalieren
 -- >>> skaliereGeld 12 (Geld 10 EUR)
--- Geld {geldBetrag = 120, geldWaehrung = EUR}
-skaliereGeld faktor geld = geld { geldBetrag = faktor * geldBetrag geld }
+-- Geld 120 EUR
+-- >>> skaliereGeld 1.2 (Geld 10 EUR)
+-- Geld 12.0 EUR
+skaliereGeld :: BigDecimal -> Geld -> Geld
+skaliereGeld _ KeinGeld = KeinGeld
+skaliereGeld faktor (Geld betrag waehrung) = geld (faktor * betrag) waehrung
 
--- | Mit Geldbeträgen rechnen
--- >>> (Geld 10 EUR) + (Geld 12 EUR)
--- Geld {geldBetrag = 22, geldWaehrung = EUR}
-instance Num Geld where
-  geld1 + geld2
-    | geldWaehrung geld1 == geldWaehrung geld2
-    = Geld (geldBetrag geld1 + geldBetrag geld2) (geldWaehrung geld1)
+instance Semigroup Geld where
+  KeinGeld <> geld2 = geld2
+  geld1 <> KeinGeld = geld1
+  (Geld betrag1 waehrung1) <> (Geld betrag2 waehrung2)
+    | waehrung1 == waehrung2
+    = Geld (betrag1 + betrag2) waehrung1
+  -- ... und bei verschiedenen Währungen?
+
+instance Monoid Geld where
+  mempty = KeinGeld
 
 -- | Gelbeträge vergleichen
 -- >>> compare (Geld 10 EUR) (Geld 12 EUR)
@@ -103,6 +166,11 @@ instance Num Geld where
 -- >>> (Geld 10 EUR) < (Geld 12 EUR)
 -- True
 instance Ord Geld where
+  compare KeinGeld KeinGeld = EQ
+  compare KeinGeld geld2 =
+    compare 0 (geldBetrag geld2)
+  compare geld1 KeinGeld =
+    compare (geldBetrag geld1) 0
   compare geld1 geld2
     | geldWaehrung geld1 == geldWaehrung geld2
     = compare (geldBetrag geld1) (geldBetrag geld2)
@@ -110,7 +178,7 @@ instance Ord Geld where
 data Waehrung = EUR | USD | GBP
   deriving (Show, Eq, Ord)
 
-data Leistung = Leistung
+data Leistung = Leistung String
   deriving (Show, Eq, Ord)
 
 data Honorar = Honorar Geld
@@ -118,7 +186,6 @@ data Honorar = Honorar Geld
 
 newtype Spesen = Spesen Geld
   deriving (Show, Eq, Ord)
-  deriving Num via Geld
 
 {-
 Spesen haben:
