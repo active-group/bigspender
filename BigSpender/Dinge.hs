@@ -1,4 +1,3 @@
-{-# LANGUAGE DerivingVia #-}
 module BigSpender.Dinge where
 
 import Data.BigDecimal (BigDecimal)
