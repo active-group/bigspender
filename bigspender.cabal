@@ -1,7 +1,7 @@
 cabal-version:       2.4
 name:                bigspender
 version:             0.1.0.0
-license:             NONE
+license:             Apache-2.0
 author:              Mike Sperber
 maintainer:          michael.sperber@active-group.de
 
